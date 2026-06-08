@@ -40,9 +40,27 @@ Message: "${text}"`
       })
     });
 
-    bot.sendMessage(msg.chat.id,
-      `✅ Logged!\n💰 ${json.amount.toLocaleString()} ${json.currency}\n🏷 ${json.category}\n📝 ${json.note}`
-    );
+   const now = new Date();
+const pad = n => String(n).padStart(2,'0');
+const dateStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+const kodeTransaksi = `${msg.from.id}x${String(now.getFullYear()).slice(2)}${pad(now.getMonth()+1)}${pad(now.getDate())}y${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+
+const kategoriMap = {
+  Food:'Makan & Minum', Transport:'Transportasi', Entertainment:'Hiburan',
+  Shopping:'Belanja', Health:'Kesehatan', Business:'Bisnis', Other:'Lainnya'
+};
+const kategori = kategoriMap[json.category] || json.category;
+
+bot.sendMessage(msg.chat.id,
+  `✅ Transaksi kamu berhasil dicatat!\n\n` +
+  `User ID: ${msg.from.id}\n` +
+  `Kode Transaksi: ${kodeTransaksi}\n\n` +
+  `Toko/Sumber: ${json.note}\n` +
+  `Items: ${json.note}\n` +
+  `Total: -${Number(json.amount).toLocaleString('id-ID')}\n` +
+  `Tanggal: ${dateStr}\n` +
+  `Kategori: ${kategori}`
+);
   } catch (err) {
     console.error('Full error:', err);
 bot.sendMessage(msg.chat.id, `❌ Error: ${err.message}`);
