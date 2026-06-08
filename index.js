@@ -27,7 +27,8 @@ Message: "${text}"`
       }]
     });
 
-    const json = JSON.parse(res.content[0].text);
+    const raw = res.content[0].text.replace(/```json|```/g, '').trim();
+const json = JSON.parse(raw);
 
     await fetch(SHEETS_URL, {
       method: 'POST',
