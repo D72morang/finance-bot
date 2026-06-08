@@ -4,30 +4,41 @@ const http = require('http');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const SHEETS_URL = process.env.SHEETS_WEBHOOK_URL;
-const ADMIN_ID = process.env.ADMIN_TELEGRAM_ID; // your own Telegram ID
+const ADMIN_ID = process.env.ADMIN_TELEGRAM_ID;
 
 const bot = new TelegramBot(process.env.TELEGRAM_TOKEN, { polling: true });
 bot.on('polling_error', err => console.log('Polling error:', err.code));
 
-// Track users in middle of registration
 const pendingRegistration = {};
 
 // ── HELPER: check if user is registered ──
 async function checkUser(telegramId) {
-  const res = await fetch(SHEETS_URL, {
-    method: 'POST',
-    body: JSON.stringify({ type: 'check_user', telegramId })
-  });
-  return res.json();
+  try {
+    const res = await fetch(SHEETS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ type: 'check_user', telegramId })
+    });
+    const text = await res.text();
+    return JSON.parse(text);
+  } catch(e) {
+    console.error('checkUser error:', e.message);
+    return { registered: false };
+  }
 }
 
 // ── HELPER: register new user ──
 async function registerUser(telegramId, name) {
-  const res = await fetch(SHEETS_URL, {
-    method: 'POST',
-    body: JSON.stringify({ type: 'register', telegramId, name })
-  });
-  return res.json();
+  try {
+    const res = await fetch(SHEETS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ type: 'register', telegramId, name })
+    });
+    const text = await res.text();
+    return JSON.parse(text);
+  } catch(e) {
+    console.error('registerUser error:', e.message);
+    return { success: false };
+  }
 }
 
 // ── /start command ──
@@ -82,15 +93,15 @@ bot.on('message', async (msg) => {
     if (state.step === 'waiting_name') {
       const name = text.trim();
       const result = await registerUser(telegramId, name);
-
       delete pendingRegistration[telegramId];
 
       if (result.success) {
-        // Notify admin
         if (ADMIN_ID) {
-          bot.sendMessage(ADMIN_ID, `🆕 User baru daftar!\nNama: ${name}\nUser ID: ${result.userId}\nTelegram ID: ${telegramId}`);
+          bot.sendMessage(ADMIN_ID,
+            `🆕 *User baru daftar!*\nNama: ${name}\nUser ID: ${result.userId}\nTelegram ID: ${telegramId}`,
+            { parse_mode: 'Markdown' }
+          );
         }
-
         bot.sendMessage(msg.chat.id,
           `✅ *Pendaftaran berhasil!*\n\n` +
           `👤 Nama: *${name}*\n` +
@@ -109,6 +120,10 @@ bot.on('message', async (msg) => {
         bot.sendMessage(msg.chat.id,
           `ℹ️ Kamu sudah terdaftar!\n🆔 User ID: \`${result.user.userId}\``,
           { parse_mode: 'Markdown' }
+        );
+      } else {
+        bot.sendMessage(msg.chat.id,
+          '❌ Pendaftaran gagal. Coba ketik /start lagi ya!'
         );
       }
       return;
@@ -146,8 +161,9 @@ Message: "${text}"`
     const kodeTransaksi = `${user.userId}x${String(now.getFullYear()).slice(2)}${pad(now.getMonth()+1)}${pad(now.getDate())}y${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
 
     const kategoriMap = {
-      Food: 'Makan & Minum', Transport: 'Transportasi', Entertainment: 'Hiburan',
-      Shopping: 'Belanja', Health: 'Kesehatan', Business: 'Bisnis', Other: 'Lainnya'
+      Food: 'Makan & Minum', Transport: 'Transportasi',
+      Entertainment: 'Hiburan', Shopping: 'Belanja',
+      Health: 'Kesehatan', Business: 'Bisnis', Other: 'Lainnya'
     };
 
     await fetch(SHEETS_URL, {
