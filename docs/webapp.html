@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Finance Tracker</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0a0a0a; --surface:#141414; --surface2:#1e1e1e; --border:#2a2a2a;
+  --accent:#c8f135; --text:#f0f0f0; --muted:#555;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;overflow-x:hidden}
+
+/* Loading */
+#loading{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:14px}
+.loader{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Nav */
+.nav{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:100}
+.nav-logo{font-size:15px;font-weight:800}
+.nav-logo span{color:var(--accent)}
+.badge{font-family:'DM Mono',monospace;font-size:10px;background:var(--surface2);border:1px solid var(--border);padding:3px 9px;border-radius:99px;color:var(--muted)}
+
+/* Tabs */
+.tabs{display:flex;gap:4px;padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--border)}
+.tab{flex:1;font-family:'DM Mono',monospace;font-size:11px;padding:7px 4px;border-radius:6px;border:none;background:transparent;color:var(--muted);cursor:pointer;transition:all .2s;text-align:center}
+.tab.active{background:var(--accent);color:#000;font-weight:600}
+
+/* Content */
+.content{padding:14px}
+
+/* Stats */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:14px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:13px}
+.stat.wide{grid-column:span 2;border-color:var(--accent);background:rgba(200,241,53,.03)}
+.stat.wide .val{color:var(--accent);font-size:26px}
+.slabel{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
+.val{font-size:20px;font-weight:800;letter-spacing:-.5px;line-height:1}
+.ssub{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-top:3px}
+
+/* Chart */
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:14px;margin-bottom:11px}
+.ctitle{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:.05em;margin-bottom:12px}
+canvas{max-height:180px}
+.legend{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+.leg-item{display:flex;align-items:center;gap:4px;font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)}
+.leg-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+
+/* Transactions */
+.section-title{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:.05em;margin-bottom:9px}
+.list{background:var(--surface);border:1px solid var(--border);border-radius:11px;overflow:hidden;margin-bottom:14px}
+.tx-row{display:flex;align-items:center;gap:11px;padding:11px 13px;border-bottom:1px solid var(--border)}
+.tx-row:last-child{border-bottom:none}
+.tx-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.tx-info{flex:1;min-width:0}
+.tx-note{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tx-meta{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-top:1px}
+.tx-right{text-align:right;flex-shrink:0}
+.tx-amt{font-family:'DM Mono',monospace;font-size:12px;font-weight:500}
+.tx-cur{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted)}
+
+/* User rows */
+.user-row{display:flex;align-items:center;gap:11px;padding:11px 13px;border-bottom:1px solid var(--border)}
+.user-row:last-child{border-bottom:none}
+.avatar{width:34px;height:34px;border-radius:50%;background:rgba(200,241,53,.1);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+.uinfo{flex:1}
+.uname{font-size:13px;font-weight:600}
+.umeta{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-top:1px}
+.plan{font-size:10px;font-weight:600;padding:2px 7px;border-radius:99px}
+.plan-free{background:rgba(255,255,255,.06);color:var(--muted)}
+.plan-premium{background:rgba(200,241,53,.12);color:var(--accent)}
+
+/* Admin banner */
+.admin-bar{background:rgba(200,241,53,.07);border-bottom:1px solid rgba(200,241,53,.15);padding:7px 14px;font-size:11px;color:var(--accent);font-weight:700;text-align:center;letter-spacing:.05em}
+
+/* Empty */
+.empty{text-align:center;padding:36px 20px;color:var(--muted)}
+.empty-icon{font-size:28px;margin-bottom:8px}
+.empty-text{font-size:12px;line-height:1.7}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="loader"></div>
+  <div style="font-size:12px;color:#444">Memuat data...</div>
+</div>
+
+<!-- USER VIEW -->
+<div id="userView" style="display:none">
+  <div class="nav">
+    <div class="nav-logo">finance<span>.</span>track</div>
+    <div class="badge" id="userBadge">—</div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" onclick="setP('week',this)">Minggu</button>
+    <button class="tab" onclick="setP('month',this)">Bulan</button>
+    <button class="tab" onclick="setP('all',this)">Semua</button>
+  </div>
+  <div class="content">
+    <div class="stats-grid" id="uStats"></div>
+    <div class="chart-card">
+      <div class="ctitle">Kategori</div>
+      <canvas id="catChart"></canvas>
+      <div class="legend" id="catLeg"></div>
+    </div>
+    <div class="chart-card">
+      <div class="ctitle">Tren Harian</div>
+      <canvas id="trendChart"></canvas>
+    </div>
+    <div class="section-title">Transaksi Terakhir</div>
+    <div class="list" id="txList"></div>
+  </div>
+</div>
+
+<!-- ADMIN VIEW -->
+<div id="adminView" style="display:none">
+  <div class="admin-bar">⚡ ADMIN PANEL</div>
+  <div class="nav">
+    <div class="nav-logo">finance<span>.</span>track</div>
+    <div class="badge" style="color:var(--accent);border-color:rgba(200,241,53,.3)">Admin</div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" onclick="setATab('overview',this)">Overview</button>
+    <button class="tab" onclick="setATab('users',this)">Users</button>
+    <button class="tab" onclick="setATab('transactions',this)">Transaksi</button>
+  </div>
+  <div class="content" id="aContent"></div>
+</div>
+
+<script>
+// ══════════════════════════════
+// GANTI DUA BARIS INI:
+const SHEETS_URL   = 'https://script.google.com/macros/s/AKfycbzUpSAHEypuN-aTzExDfnOMwAg7LLODiyr2jKTHh1fAYaiWiyYc4jcXsQBmCuXwaJuT/exec';
+const ADMIN_TG_ID  = '1129168436';
+// ══════════════════════════════
+
+const tg = window.Telegram.WebApp;
+tg.ready(); tg.expand();
+
+const CAT_COLORS = {Food:'#c8f135',Transport:'#35c8f1',Entertainment:'#f135c8',Shopping:'#f1c135',Health:'#35f1a0',Business:'#f17535',Other:'#a035f1'};
+const CAT_ICONS  = {Food:'🍽',Transport:'🚗',Entertainment:'🎮',Shopping:'🛍',Health:'💊',Business:'💼',Other:'📦'};
+
+let allTx=[], allUsers=[], userPeriod='week';
+let catInst, trendInst;
+
+const tgId = tg.initDataUnsafe?.user?.id || null;
+
+async function init() {
+  if (!tgId) {
+    document.getElementById('loading').innerHTML = '<div style="text-align:center;padding:40px 20px"><div style="font-size:28px;margin-bottom:10px">⚠️</div><div style="font-size:12px;color:#555">Buka melalui Telegram Bot<br>ketik /dashboard</div></div>';
+    return;
+  }
+  try {
+    if (String(tgId) === String(ADMIN_TG_ID)) {
+      const r = await fetch(`${SHEETS_URL}?admin=true&telegramId=${tgId}`);
+      const d = await r.json();
+      allTx = d.transactions || []; allUsers = d.users || [];
+      show('adminView'); renderAdmin('overview');
+    } else {
+      const r = await fetch(`${SHEETS_URL}?telegramId=${tgId}`);
+      const d = await r.json();
+      allTx = d.transactions || [];
+      const u = d.user;
+      document.getElementById('userBadge').textContent = u?.userId || '—';
+      show('userView'); renderUser();
+    }
+  } catch(e) {
+    document.getElementById('loading').innerHTML = '<div style="text-align:center;padding:40px 20px"><div style="font-size:28px;margin-bottom:10px">❌</div><div style="font-size:12px;color:#555">Gagal memuat.<br>Coba lagi nanti.</div></div>';
+  }
+}
+
+function show(id) { document.getElementById('loading').style.display='none'; document.getElementById(id).style.display='block'; }
+function toIDR(a,c){const r={IDR:1,USD:16000,SGD:12000,EUR:17000};return Number(a)*(r[c?.toUpperCase()]||1);}
+function fmt(n){if(n>=1000000)return'Rp '+(n/1000000).toFixed(1)+'jt';if(n>=1000)return'Rp '+(n/1000).toFixed(0)+'rb';return'Rp '+n.toFixed(0);}
+function filterP(data,p){const now=new Date();return data.filter(r=>{const d=new Date(r.timestamp);if(p==='week')return(now-d)<7*86400000;if(p==='month')return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();return true;});}
+
+// ── USER ──
+function setP(p,el){userPeriod=p;document.querySelectorAll('#userView .tab').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderUser();}
+
+function renderUser() {
+  const data = filterP(allTx, userPeriod);
+  const total = data.reduce((s,r)=>s+toIDR(r.amount,r.currency),0);
+  const catT = {}; data.forEach(r=>{catT[r.category]=(catT[r.category]||0)+toIDR(r.amount,r.currency);});
+  const topC = Object.entries(catT).sort((a,b)=>b[1]-a[1])[0];
+
+  document.getElementById('uStats').innerHTML = `
+    <div class="stat wide"><div class="slabel">Total Pengeluaran</div><div class="val">${fmt(total)}</div><div class="ssub">${userPeriod==='week'?'minggu ini':userPeriod==='month'?'bulan ini':'semua waktu'}</div></div>
+    <div class="stat"><div class="slabel">Transaksi</div><div class="val">${data.length}</div><div class="ssub">entri</div></div>
+    <div class="stat"><div class="slabel">Terbanyak</div><div class="val" style="font-size:14px">${topC?topC[0]:'—'}</div><div class="ssub">${topC?fmt(topC[1]):'—'}</div></div>`;
+
+  const cL=Object.keys(catT), cC=cL.map(k=>CAT_COLORS[k]||'#888');
+  if(catInst)catInst.destroy();
+  if(cL.length){
+    catInst=new Chart(document.getElementById('catChart'),{type:'doughnut',data:{labels:cL,datasets:[{data:cL.map(k=>catT[k]),backgroundColor:cC,borderWidth:2,borderColor:'#141414'}]},options:{plugins:{legend:{display:false}},cutout:'62%'}});
+    document.getElementById('catLeg').innerHTML=cL.map((l,i)=>`<div class="leg-item"><div class="leg-dot" style="background:${cC[i]}"></div>${l}</div>`).join('');
+  }
+
+  const dMap={}; data.forEach(r=>{const k=new Date(r.timestamp).toLocaleDateString('id-ID',{day:'2-digit',month:'short'});dMap[k]=(dMap[k]||0)+toIDR(r.amount,r.currency);});
+  const d10=Object.entries(dMap).slice(-10);
+  if(trendInst)trendInst.destroy();
+  trendInst=new Chart(document.getElementById('trendChart'),{type:'bar',data:{labels:d10.map(d=>d[0]),datasets:[{data:d10.map(d=>d[1]),backgroundColor:'rgba(200,241,53,.12)',borderColor:'#c8f135',borderWidth:1.5,borderRadius:4}]},options:{plugins:{legend:{display:false}},scales:{x:{grid:{color:'#1e1e1e'},ticks:{color:'#444',font:{size:9}}},y:{grid:{color:'#1e1e1e'},ticks:{color:'#444',font:{size:9},callback:v=>fmt(v)}}}}});
+
+  const sorted=[...data].sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).slice(0,15);
+  document.getElementById('txList').innerHTML=sorted.length?sorted.map(r=>{
+    const c=CAT_COLORS[r.category]||'#888', ic=CAT_ICONS[r.category]||'📦';
+    const ds=new Date(r.timestamp).toLocaleDateString('id-ID',{day:'2-digit',month:'short'});
+    return`<div class="tx-row"><div class="tx-icon" style="background:${c}18">${ic}</div><div class="tx-info"><div class="tx-note">${r.note||r.raw||'—'}</div><div class="tx-meta">${ds} · ${r.category}</div></div><div class="tx-right"><div class="tx-amt" style="color:${c}">-${Number(r.amount).toLocaleString('id-ID')}</div><div class="tx-cur">${r.currency||'IDR'}</div></div></div>`;
+  }).join(''):`<div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">Belum ada transaksi<br>di periode ini</div></div>`;
+}
+
+// ── ADMIN ──
+function setATab(tab,el){document.querySelectorAll('#adminView .tab').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderAdmin(tab);}
+
+function renderAdmin(tab) {
+  const c = document.getElementById('aContent');
+  if(tab==='overview'){
+    const now=new Date();
+    const todayTx=allTx.filter(r=>new Date(r.timestamp).toDateString()===now.toDateString());
+    const monthTx=allTx.filter(r=>{const d=new Date(r.timestamp);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
+    const mTotal=monthTx.reduce((s,r)=>s+toIDR(r.amount,r.currency),0);
+    const uSpend={};allTx.forEach(r=>{uSpend[r.telegramId]=(uSpend[r.telegramId]||0)+toIDR(r.amount,r.currency);});
+    const top5=Object.entries(uSpend).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    c.innerHTML=`
+      <div class="stats-grid" style="margin-bottom:14px">
+        <div class="stat wide"><div class="slabel">Total Users</div><div class="val">${allUsers.length}</div><div class="ssub">terdaftar</div></div>
+        <div class="stat"><div class="slabel">Tx Hari Ini</div><div class="val">${todayTx.length}</div><div class="ssub">transaksi</div></div>
+        <div class="stat"><div class="slabel">Spend Bulan Ini</div><div class="val" style="font-size:14px">${fmt(mTotal)}</div><div class="ssub">semua user</div></div>
+      </div>
+      <div class="section-title">User Paling Aktif</div>
+      <div class="list">${top5.length?top5.map(([tid,total])=>{const u=allUsers.find(x=>String(x.telegramId)===String(tid));const init=u?.name?u.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase():'?';const cnt=allTx.filter(r=>String(r.telegramId)===String(tid)).length;return`<div class="user-row"><div class="avatar">${init}</div><div class="uinfo"><div class="uname">${u?.name||'Unknown'}</div><div class="umeta">${cnt} transaksi</div></div><div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--accent);font-weight:500">${fmt(total)}</div></div>`;}).join(''):`<div class="empty"><div class="empty-icon">📊</div><div class="empty-text">Belum ada data</div></div>`}</div>`;
+  }
+  if(tab==='users'){
+    c.innerHTML=`<div style="margin-bottom:9px;font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)">${allUsers.length} users terdaftar</div>
+      <div class="list">${allUsers.length?allUsers.map(u=>{const init=u.name?u.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase():'?';const cnt=allTx.filter(r=>String(r.telegramId)===String(u.telegramId)).length;return`<div class="user-row"><div class="avatar">${init}</div><div class="uinfo"><div class="uname">${u.name}</div><div class="umeta">${u.userId} · ${cnt} tx</div></div><div class="plan ${u.plan==='premium'?'plan-premium':'plan-free'}">${u.plan}</div></div>`;}).join(''):`<div class="empty"><div class="empty-icon">👥</div><div class="empty-text">Belum ada user</div></div>`}</div>`;
+  }
+  if(tab==='transactions'){
+    const sorted=[...allTx].sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).slice(0,30);
+    c.innerHTML=`<div style="margin-bottom:9px;font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)">${allTx.length} total transaksi</div>
+      <div class="list">${sorted.length?sorted.map(r=>{const clr=CAT_COLORS[r.category]||'#888',ic=CAT_ICONS[r.category]||'📦';const u=allUsers.find(x=>String(x.telegramId)===String(r.telegramId));const ds=new Date(r.timestamp).toLocaleDateString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});return`<div class="tx-row"><div class="tx-icon" style="background:${clr}18">${ic}</div><div class="tx-info"><div class="tx-note">${r.note||r.raw||'—'}</div><div class="tx-meta">${u?.name||r.userId} · ${ds}</div></div><div class="tx-right"><div class="tx-amt" style="color:${clr}">-${Number(r.amount).toLocaleString('id-ID')}</div><div class="tx-cur">${r.currency||'IDR'}</div></div></div>`;}).join(''):`<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Belum ada transaksi</div></div>`}</div>`;
+  }
+}
+
+init();
+</script>
+</body>
+</html>
