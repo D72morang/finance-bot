@@ -195,5 +195,19 @@ Message: "${text}"`
     bot.sendMessage(msg.chat.id, '❌ Gagal memproses. Coba lagi ya!');
   }
 });
-
+bot.onText(/\/dashboard/, async (msg) => {
+  const user = await checkUser(msg.from.id);
+  if (!user.registered) {
+    bot.sendMessage(msg.chat.id, '❌ Kamu belum terdaftar. Ketik /start untuk mendaftar.');
+    return;
+  }
+  bot.sendMessage(msg.chat.id, '📊 Buka dashboard pengeluaran kamu:', {
+    reply_markup: {
+      inline_keyboard: [[{
+        text: '📊 Lihat Dashboard',
+        web_app: { url: 'https://d72morang.github.io/finance-bot/webapp.html' }
+      }]]
+    }
+  });
+});
 http.createServer((req, res) => res.end('Bot is running!')).listen(process.env.PORT || 3000);
