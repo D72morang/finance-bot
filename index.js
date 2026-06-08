@@ -41,3 +41,6 @@ try {
   } catch (err) {
     bot.sendMessage(msg.chat.id, '❌ Sorry, I couldn\'t understand that. Try: "lunch 85k" or "grab 45k idr"');
   }
+
+const http = require('http');
+http.createServer((req, res) => res.end('Bot is running!')).listen(process.env.PORT || 3000);
