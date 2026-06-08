@@ -2,7 +2,12 @@ const TelegramBot = require('node-telegram-bot-api');
 const Anthropic = require('@anthropic-ai/sdk');
 const http = require('http');
 
-const bot = new TelegramBot(process.env.TELEGRAM_TOKEN, { polling: true });
+const bot = new TelegramBot(process.env.TELEGRAM_TOKEN, { 
+  polling: {
+    autoStart: true,
+    params: { timeout: 10 }
+  }
+});
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const SHEETS_URL = process.env.SHEETS_WEBHOOK_URL;
 
