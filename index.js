@@ -2,14 +2,16 @@ const TelegramBot = require('node-telegram-bot-api');
 const Anthropic = require('@anthropic-ai/sdk');
 const http = require('http');
 
-const bot = new TelegramBot(process.env.TELEGRAM_TOKEN, { 
-  polling: {
-    autoStart: true,
-    params: { timeout: 10 }
-  }
-});
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const SHEETS_URL = process.env.SHEETS_WEBHOOK_URL;
+
+// Fix 409 conflict — clear old sessions first
+const bot = new TelegramBot(process.env.TELEGRAM_TOKEN, { polling: false });
+
+bot.deleteWebhook({ drop_pending_updates: true }).then(() => {
+  bot.startPolling();
+  console.log('Bot started successfully!');
+});
 
 bot.on('message', async (msg) => {
   const text = msg.text;
@@ -21,14 +23,14 @@ bot.on('message', async (msg) => {
       max_tokens: 300,
       messages: [{
         role: 'user',
-        content: `Extract expense from this message. Return ONLY valid JSON with keys: amount (number), currency (IDR/USD/SGD/etc), category (Food/Transport/Entertainment/Shopping/Health/Business/Other), note (short description).
-        
+        content: `Extract expense from this message. Return ONLY valid JSON, no markdown, no code blocks. Keys: amount (number), currency (IDR/USD/SGD), category (Food/Transport/Entertainment/Shopping/Health/Business/Other), note (short description).
+
 Message: "${text}"`
       }]
     });
 
     const raw = res.content[0].text.replace(/```json|```/g, '').trim();
-const json = JSON.parse(raw);
+    const json = JSON.parse(raw);
 
     await fetch(SHEETS_URL, {
       method: 'POST',
@@ -43,7 +45,8 @@ const json = JSON.parse(raw);
       `✅ Logged!\n💰 ${json.amount.toLocaleString()} ${json.currency}\n🏷 ${json.category}\n📝 ${json.note}`
     );
   } catch (err) {
-    bot.sendMessage(msg.chat.id, '❌ Could not understand that. Try: "lunch 85k" or "grab 45k idr"');
+    console.error('Error:', err.message);
+    bot.sendMessage(msg.chat.id, '❌ Something went wrong. Please try again.');
   }
 });
 
