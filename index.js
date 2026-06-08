@@ -44,7 +44,8 @@ Message: "${text}"`
       `✅ Logged!\n💰 ${json.amount.toLocaleString()} ${json.currency}\n🏷 ${json.category}\n📝 ${json.note}`
     );
   } catch (err) {
-    console.error('Error:', err.message);
+    console.error('Full error:', err);
+bot.sendMessage(msg.chat.id, `❌ Error: ${err.message}`);
     bot.sendMessage(msg.chat.id, '❌ Something went wrong. Please try again.');
   }
 });
