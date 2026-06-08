@@ -5,12 +5,11 @@ const http = require('http');
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const SHEETS_URL = process.env.SHEETS_WEBHOOK_URL;
 
-// Fix 409 conflict — clear old sessions first
-const bot = new TelegramBot(process.env.TELEGRAM_TOKEN, { polling: false });
+const bot = new TelegramBot(process.env.TELEGRAM_TOKEN, { polling: true });
 
-bot.deleteWebhook({ drop_pending_updates: true }).then(() => {
-  bot.startPolling();
-  console.log('Bot started successfully!');
+// Ignore 409 conflict during redeploys — resolves itself
+bot.on('polling_error', (err) => {
+  console.log('Polling error:', err.code);
 });
 
 bot.on('message', async (msg) => {
